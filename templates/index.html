@@ -292,6 +292,47 @@
       font-weight: 600;
     }
 
+    .batch-summary {
+      display: none;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .summary-item {
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .summary-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .summary-value {
+      display: block;
+      margin-top: 3px;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .batch-filters {
+      display: none;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+      margin-top: 12px;
+    }
+
+    .batch-filter-field {
+      min-width: 180px;
+    }
+
     .batch-table-wrap {
       display: none;
       margin-top: 14px;
@@ -450,6 +491,7 @@
 
       .workspace,
       .form-grid,
+      .batch-summary,
       .detail-grid,
       .detail-result-grid {
         grid-template-columns: 1fr;
@@ -615,6 +657,44 @@
       <button onclick="duDoanHangLoat()">Dự đoán CSV</button>
     </div>
     <div class="batch-status" id="batch_status">Chưa có file CSV</div>
+    <div class="batch-summary" id="batch_summary">
+      <div class="summary-item">
+        <span class="summary-label">Cao</span>
+        <span class="summary-value" id="summary_high">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Trung bình</span>
+        <span class="summary-value" id="summary_medium">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Thấp</span>
+        <span class="summary-value" id="summary_low">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Lỗi</span>
+        <span class="summary-value" id="summary_error">0</span>
+      </div>
+    </div>
+    <div class="batch-filters" id="batch_filters">
+      <div class="batch-filter-field">
+        <label for="risk_filter">Lọc mức rủi ro</label>
+        <select id="risk_filter" onchange="applyBatchFilters()">
+          <option value="all">Tất cả</option>
+          <option value="Cao">Cao</option>
+          <option value="Trung bình">Trung bình</option>
+          <option value="Thấp">Thấp</option>
+          <option value="error">Lỗi</option>
+        </select>
+      </div>
+      <div class="batch-filter-field">
+        <label for="risk_sort">Sắp xếp</label>
+        <select id="risk_sort" onchange="applyBatchFilters()">
+          <option value="risk_desc">Risk Score giảm dần</option>
+          <option value="risk_asc">Risk Score tăng dần</option>
+          <option value="row_asc">Theo dòng CSV</option>
+        </select>
+      </div>
+    </div>
     <div class="batch-table-wrap" id="batch_table_wrap">
       <table>
         <thead>
@@ -675,6 +755,8 @@
     "du_bao_nhu_cau"
   ];
   let batchPredictionResults = [];
+  let currentBatchView = [];
+  let batchStatusSummary = "";
 
   function getField(input) {
     return input.closest(".field");
@@ -949,7 +1031,7 @@
   }
 
   function showBatchDetail(index) {
-    const item = batchPredictionResults[index];
+    const item = currentBatchView[index];
     const modal = document.getElementById("batch_detail_modal");
     const inputs = document.getElementById("detail_inputs");
     const prediction = document.getElementById("detail_prediction");
@@ -991,9 +1073,9 @@
     const tableWrap = document.getElementById("batch_table_wrap");
     const tableBody = document.getElementById("batch_results");
 
-    batchPredictionResults = results;
     hideBatchDetail();
     tableBody.innerHTML = "";
+    currentBatchView = results;
     results.forEach((item, index) => {
       const row = document.createElement("tr");
 
@@ -1034,6 +1116,83 @@
     tableWrap.style.display = results.length > 0 ? "block" : "none";
   }
 
+  function getRiskPriority(item) {
+    if (item.status !== "success") {
+      return -1;
+    }
+
+    if (item.muc_rui_ro === "Cao") {
+      return 3;
+    }
+
+    if (item.muc_rui_ro === "Trung bình") {
+      return 2;
+    }
+
+    if (item.muc_rui_ro === "Thấp") {
+      return 1;
+    }
+
+    return 0;
+  }
+
+  function updateBatchSummary(results) {
+    const summary = {
+      high: 0,
+      medium: 0,
+      low: 0,
+      error: 0
+    };
+
+    results.forEach((item) => {
+      if (item.status !== "success") {
+        summary.error += 1;
+      } else if (item.muc_rui_ro === "Cao") {
+        summary.high += 1;
+      } else if (item.muc_rui_ro === "Trung bình") {
+        summary.medium += 1;
+      } else if (item.muc_rui_ro === "Thấp") {
+        summary.low += 1;
+      }
+    });
+
+    document.getElementById("summary_high").innerText = summary.high;
+    document.getElementById("summary_medium").innerText = summary.medium;
+    document.getElementById("summary_low").innerText = summary.low;
+    document.getElementById("summary_error").innerText = summary.error;
+    document.getElementById("batch_summary").style.display = results.length > 0 ? "grid" : "none";
+  }
+
+  function applyBatchFilters() {
+    const riskFilter = document.getElementById("risk_filter").value;
+    const riskSort = document.getElementById("risk_sort").value;
+    const status = document.getElementById("batch_status");
+    let visibleResults = [...batchPredictionResults];
+
+    if (riskFilter === "error") {
+      visibleResults = visibleResults.filter((item) => item.status !== "success");
+    } else if (riskFilter !== "all") {
+      visibleResults = visibleResults.filter((item) => item.status === "success" && item.muc_rui_ro === riskFilter);
+    }
+
+    if (riskSort === "risk_desc") {
+      visibleResults.sort((a, b) => {
+        const scoreDiff = (Number(b.risk_score) || 0) - (Number(a.risk_score) || 0);
+        return scoreDiff || getRiskPriority(b) - getRiskPriority(a) || a.row_number - b.row_number;
+      });
+    } else if (riskSort === "risk_asc") {
+      visibleResults.sort((a, b) => {
+        const scoreDiff = (Number(a.risk_score) || 0) - (Number(b.risk_score) || 0);
+        return scoreDiff || getRiskPriority(a) - getRiskPriority(b) || a.row_number - b.row_number;
+      });
+    } else {
+      visibleResults.sort((a, b) => a.row_number - b.row_number);
+    }
+
+    renderBatchResults(visibleResults);
+    status.innerText = `${batchStatusSummary} Đang hiển thị ${visibleResults.length}/${batchPredictionResults.length} dòng.`;
+  }
+
   async function duDoanHangLoat() {
     const fileInput = document.getElementById("csv_file");
     const status = document.getElementById("batch_status");
@@ -1042,6 +1201,8 @@
     if (!fileInput.files.length) {
       status.innerText = "Vui lòng chọn file CSV.";
       tableWrap.style.display = "none";
+      document.getElementById("batch_summary").style.display = "none";
+      document.getElementById("batch_filters").style.display = "none";
       hideBatchDetail();
       return;
     }
@@ -1051,6 +1212,8 @@
 
     status.innerText = "Đang dự đoán CSV...";
     tableWrap.style.display = "none";
+    document.getElementById("batch_summary").style.display = "none";
+    document.getElementById("batch_filters").style.display = "none";
     hideBatchDetail();
 
     const response = await fetch("/predict-batch", {
@@ -1062,12 +1225,20 @@
 
     if (!response.ok) {
       status.innerText = result.error || "Không thể dự đoán file CSV.";
+      batchPredictionResults = [];
+      currentBatchView = [];
+      batchStatusSummary = "";
       hideBatchDetail();
       return;
     }
 
-    status.innerText = `Đã xử lý ${result.total_rows} dòng: ${result.success_count} thành công, ${result.error_count} lỗi.`;
-    renderBatchResults(result.results || []);
+    batchPredictionResults = result.results || [];
+    document.getElementById("risk_filter").value = "all";
+    document.getElementById("risk_sort").value = "risk_desc";
+    document.getElementById("batch_filters").style.display = batchPredictionResults.length > 0 ? "flex" : "none";
+    updateBatchSummary(batchPredictionResults);
+    batchStatusSummary = `Đã xử lý ${result.total_rows} dòng: ${result.success_count} thành công, ${result.error_count} lỗi.`;
+    applyBatchFilters();
   }
 
   async function duDoan() {
