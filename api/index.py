@@ -444,12 +444,14 @@ def predict_batch():
                 results.append({
                     "row_number": index,
                     "status": "success",
+                    "input_data": row_data,
                     **prediction
                 })
             except Exception as e:
                 results.append({
                     "row_number": index,
                     "status": "error",
+                    "input_data": row_data,
                     "error": str(e)
                 })
 

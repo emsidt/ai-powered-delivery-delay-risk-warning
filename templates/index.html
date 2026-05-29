@@ -200,6 +200,41 @@
       font-weight: bold;
     }
 
+    .risk-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .risk-low {
+      color: #166534;
+      background: #dcfce7;
+      border: 1px solid #86efac;
+    }
+
+    .risk-medium {
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+    }
+
+    .risk-high {
+      color: #991b1b;
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+    }
+
+    .risk-neutral {
+      color: #334155;
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+    }
+
     .insight-block {
       margin-top: 6px;
     }
@@ -302,6 +337,89 @@
       font-weight: 700;
     }
 
+    .detail-button {
+      min-width: auto;
+      min-height: 34px;
+      margin-top: 0;
+      padding: 7px 12px;
+      font-size: 13px;
+      box-shadow: none;
+    }
+
+    .batch-detail-card {
+      display: none;
+      margin-top: 16px;
+      padding: 18px;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      background: #f8fbff;
+    }
+
+    .detail-card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .detail-card-header h3 {
+      margin: 0;
+    }
+
+    .detail-close {
+      min-width: auto;
+      min-height: 32px;
+      margin-top: 0;
+      padding: 6px 10px;
+      background: #64748b;
+      box-shadow: none;
+      font-size: 13px;
+    }
+
+    .detail-section {
+      margin-top: 14px;
+    }
+
+    .detail-section h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #0f172a;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .detail-item {
+      padding: 9px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: white;
+    }
+
+    .detail-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .detail-value {
+      color: var(--text);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-result-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
     @media (max-width: 820px) {
       body {
         padding: 10px;
@@ -312,7 +430,9 @@
       }
 
       .workspace,
-      .form-grid {
+      .form-grid,
+      .detail-grid,
+      .detail-result-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -452,6 +572,7 @@
       <h3>Kết quả dự đoán</h3>
       <p><b>Trạng thái:</b> <span class="result-value" id="du_doan">Chưa có dữ liệu</span></p>
       <p><b>Risk Score:</b> <span class="score" id="risk_score">--</span></p>
+      <p><b>Mức rủi ro:</b> <span class="risk-badge risk-neutral" id="muc_rui_ro">--</span></p>
       <p><b>Quyết định cảnh báo:</b> <span class="result-value" id="quyet_dinh">--</span></p>
       <div class="insight-block">
         <h4>Lý do rủi ro</h4>
@@ -484,12 +605,37 @@
             <th>Risk Score</th>
             <th>Mức rủi ro</th>
             <th>Quyết định</th>
-            <th>Lý do rủi ro</th>
-            <th>Gợi ý hành động</th>
+            <th>Chi tiết</th>
           </tr>
         </thead>
         <tbody id="batch_results"></tbody>
       </table>
+    </div>
+    <div class="batch-detail-card" id="batch_detail_card">
+      <div class="detail-card-header">
+        <h3 id="detail_title">Chi tiết dòng</h3>
+        <button class="detail-close" onclick="hideBatchDetail()">Đóng</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Thông số đầu vào</h4>
+        <div class="detail-grid" id="detail_inputs"></div>
+      </div>
+
+      <div class="detail-section">
+        <h4>Kết quả dự đoán</h4>
+        <div class="detail-result-grid" id="detail_prediction"></div>
+      </div>
+
+      <div class="detail-section">
+        <h4>Lý do rủi ro</h4>
+        <ul class="insight-list" id="detail_reasons"></ul>
+      </div>
+
+      <div class="detail-section">
+        <h4>Gợi ý hành động</h4>
+        <ul class="insight-list" id="detail_actions"></ul>
+      </div>
     </div>
   </div>
 </div>
@@ -507,6 +653,7 @@
     "muc_su_dung_phuong_tien",
     "du_bao_nhu_cau"
   ];
+  let batchPredictionResults = [];
 
   function getField(input) {
     return input.closest(".field");
@@ -684,6 +831,30 @@
     });
   }
 
+  function getRiskClass(level) {
+    if (level === "Cao") {
+      return "risk-high";
+    }
+
+    if (level === "Trung bình") {
+      return "risk-medium";
+    }
+
+    if (level === "Thấp") {
+      return "risk-low";
+    }
+
+    return "risk-neutral";
+  }
+
+  function createRiskBadge(level) {
+    const badge = document.createElement("span");
+
+    badge.className = `risk-badge ${getRiskClass(level)}`;
+    badge.innerText = level || "--";
+    return badge;
+  }
+
   function createTableList(items) {
     const list = document.createElement("ul");
     const safeItems = Array.isArray(items) && items.length > 0 ? items : ["--"];
@@ -710,34 +881,118 @@
     return cell;
   }
 
+  function appendDetailItem(container, label, value) {
+    const item = document.createElement("div");
+    const labelElement = document.createElement("span");
+    const valueElement = document.createElement("span");
+
+    item.className = "detail-item";
+    labelElement.className = "detail-label";
+    valueElement.className = "detail-value";
+    labelElement.innerText = label;
+    valueElement.innerText = value === "" || value === undefined || value === null ? "--" : value;
+
+    item.appendChild(labelElement);
+    item.appendChild(valueElement);
+    container.appendChild(item);
+  }
+
+  function appendDetailBadge(container, label, level) {
+    const item = document.createElement("div");
+    const labelElement = document.createElement("span");
+
+    item.className = "detail-item";
+    labelElement.className = "detail-label";
+    labelElement.innerText = label;
+
+    item.appendChild(labelElement);
+    item.appendChild(createRiskBadge(level));
+    container.appendChild(item);
+  }
+
+  function hideBatchDetail() {
+    document.getElementById("batch_detail_card").style.display = "none";
+  }
+
+  function showBatchDetail(index) {
+    const item = batchPredictionResults[index];
+    const card = document.getElementById("batch_detail_card");
+    const inputs = document.getElementById("detail_inputs");
+    const prediction = document.getElementById("detail_prediction");
+
+    if (!item) {
+      return;
+    }
+
+    document.getElementById("detail_title").innerText = `Chi tiết dòng ${item.row_number || "--"}`;
+    inputs.innerHTML = "";
+    prediction.innerHTML = "";
+
+    Object.entries(item.input_data || {}).forEach(([key, value]) => {
+      appendDetailItem(inputs, key, value);
+    });
+
+    if (item.status !== "success") {
+      appendDetailItem(prediction, "Trạng thái", "Lỗi");
+      appendDetailItem(prediction, "Lỗi", item.error || "--");
+      renderList("detail_reasons", []);
+      renderList("detail_actions", []);
+      card.style.display = "block";
+      card.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    appendDetailItem(prediction, "Trạng thái", item.du_doan_giao_tre || "--");
+    appendDetailItem(prediction, "Risk Score", `${item.risk_score}%`);
+    appendDetailBadge(prediction, "Mức rủi ro", item.muc_rui_ro);
+    appendDetailItem(prediction, "Quyết định", item.quyet_dinh_canh_bao || "--");
+    renderList("detail_reasons", item.ly_do_rui_ro);
+    renderList("detail_actions", item.goi_y_hanh_dong);
+
+    card.style.display = "block";
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function renderBatchResults(results) {
     const tableWrap = document.getElementById("batch_table_wrap");
     const tableBody = document.getElementById("batch_results");
 
+    batchPredictionResults = results;
+    hideBatchDetail();
     tableBody.innerHTML = "";
-    results.forEach((item) => {
+    results.forEach((item, index) => {
       const row = document.createElement("tr");
 
       setCellText(row, item.row_number || "--");
       setCellText(row, item.status === "success" ? "Thành công" : "Lỗi", item.status === "success" ? "" : "batch-row-error");
 
       if (item.status !== "success") {
-        setCellText(row, item.error || "--", "batch-row-error").colSpan = 5;
+        setCellText(row, item.error || "--", "batch-row-error").colSpan = 3;
+        const detailCell = document.createElement("td");
+        const detailButton = document.createElement("button");
+
+        detailButton.className = "detail-button";
+        detailButton.innerText = "Xem chi tiết";
+        detailButton.onclick = () => showBatchDetail(index);
+        detailCell.appendChild(detailButton);
+        row.appendChild(detailCell);
         tableBody.appendChild(row);
         return;
       }
 
       setCellText(row, `${item.risk_score}%`);
-      setCellText(row, item.muc_rui_ro || "--");
+      const riskCell = document.createElement("td");
+      riskCell.appendChild(createRiskBadge(item.muc_rui_ro));
+      row.appendChild(riskCell);
       setCellText(row, item.quyet_dinh_canh_bao || "--");
 
-      const reasonCell = document.createElement("td");
-      reasonCell.appendChild(createTableList(item.ly_do_rui_ro));
-      row.appendChild(reasonCell);
-
-      const actionCell = document.createElement("td");
-      actionCell.appendChild(createTableList(item.goi_y_hanh_dong));
-      row.appendChild(actionCell);
+      const detailCell = document.createElement("td");
+      const detailButton = document.createElement("button");
+      detailButton.className = "detail-button";
+      detailButton.innerText = "Xem chi tiết";
+      detailButton.onclick = () => showBatchDetail(index);
+      detailCell.appendChild(detailButton);
+      row.appendChild(detailCell);
 
       tableBody.appendChild(row);
     });
@@ -753,6 +1008,7 @@
     if (!fileInput.files.length) {
       status.innerText = "Vui lòng chọn file CSV.";
       tableWrap.style.display = "none";
+      hideBatchDetail();
       return;
     }
 
@@ -761,6 +1017,7 @@
 
     status.innerText = "Đang dự đoán CSV...";
     tableWrap.style.display = "none";
+    hideBatchDetail();
 
     const response = await fetch("/predict-batch", {
       method: "POST",
@@ -771,6 +1028,7 @@
 
     if (!response.ok) {
       status.innerText = result.error || "Không thể dự đoán file CSV.";
+      hideBatchDetail();
       return;
     }
 
@@ -823,6 +1081,9 @@
 
     document.getElementById("du_doan").innerText = result.du_doan_giao_tre;
     document.getElementById("risk_score").innerText = result.risk_score + "%";
+    const riskBadge = document.getElementById("muc_rui_ro");
+    riskBadge.innerText = result.muc_rui_ro || "--";
+    riskBadge.className = `risk-badge ${getRiskClass(result.muc_rui_ro)}`;
     document.getElementById("quyet_dinh").innerText = result.quyet_dinh_canh_bao;
     renderList("ly_do_rui_ro", result.ly_do_rui_ro);
     renderList("goi_y_hanh_dong", result.goi_y_hanh_dong);
