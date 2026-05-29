@@ -100,6 +100,24 @@
       box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
     }
 
+    .field-error {
+      display: none;
+      margin-top: 5px;
+      color: var(--danger);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .field.has-error input {
+      border-color: var(--danger);
+      background: #fff7f7;
+    }
+
+    .field.has-error .field-error {
+      display: block;
+    }
+
     button {
       margin-top: 18px;
       width: auto;
@@ -338,29 +356,155 @@
 </div>
 
 <script>
+  const numericInputIds = [
+    "gia_tri_giao_dich",
+    "tan_suat_mua_hang",
+    "muc_ton_kho",
+    "ton_kho_an_toan",
+    "nhiet_do",
+    "do_am",
+    "thoi_gian_cho",
+    "nguong_chiu_tre",
+    "muc_su_dung_phuong_tien",
+    "du_bao_nhu_cau"
+  ];
+
+  function getField(input) {
+    return input.closest(".field");
+  }
+
+  function getFieldLabel(input) {
+    const label = getField(input).querySelector("label");
+    return label ? label.innerText : "Trường này";
+  }
+
+  function getFieldError(input) {
+    const field = getField(input);
+    let error = field.querySelector(".field-error");
+
+    if (!error) {
+      error = document.createElement("div");
+      error.className = "field-error";
+      field.appendChild(error);
+    }
+
+    return error;
+  }
+
+  function showFieldError(input, message) {
+    const field = getField(input);
+    const error = getFieldError(input);
+
+    error.innerText = message;
+    field.classList.add("has-error");
+  }
+
+  function clearFieldError(input) {
+    const field = getField(input);
+    const error = field.querySelector(".field-error");
+
+    if (error) {
+      error.innerText = "";
+    }
+
+    field.classList.remove("has-error");
+  }
+
+  function clearAllFieldErrors() {
+    numericInputIds.forEach((id) => clearFieldError(document.getElementById(id)));
+  }
+
+  function isAllowedNumericValue(value) {
+    return value === "" || /^\d+(\.\d*)?$/.test(value) || /^\.\d+$/.test(value);
+  }
+
+  function handleNumericBeforeInput(event) {
+    if (!event.data || !event.inputType.startsWith("insert")) {
+      return;
+    }
+
+    const input = event.currentTarget;
+    const nextValue =
+      input.value.slice(0, input.selectionStart) +
+      event.data +
+      input.value.slice(input.selectionEnd);
+
+    if (!isAllowedNumericValue(nextValue)) {
+      event.preventDefault();
+      showFieldError(input, "Chỉ được nhập số không âm.");
+    }
+  }
+
+  function handleNumericKeyDown(event) {
+    if (
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      event.key.length > 1
+    ) {
+      return;
+    }
+
+    if (!/[\d.]/.test(event.key)) {
+      event.preventDefault();
+      showFieldError(event.currentTarget, "Chỉ được nhập số không âm.");
+    }
+  }
+
+  function handleNumericPaste(event) {
+    const input = event.currentTarget;
+    const pastedText = event.clipboardData.getData("text");
+
+    if (!isAllowedNumericValue(pastedText)) {
+      event.preventDefault();
+      showFieldError(input, "Chỉ được nhập số không âm.");
+    }
+  }
+
+  function setupNumericInputs() {
+    numericInputIds.forEach((id) => {
+      const input = document.getElementById(id);
+
+      input.setAttribute("inputmode", "decimal");
+      input.addEventListener("keydown", handleNumericKeyDown);
+      input.addEventListener("beforeinput", handleNumericBeforeInput);
+      input.addEventListener("paste", handleNumericPaste);
+      input.addEventListener("input", () => {
+        if (isAllowedNumericValue(input.value)) {
+          clearFieldError(input);
+          return;
+        }
+
+        input.value = input.value.replace(/[^\d.]/g, "");
+        showFieldError(input, "Chỉ được nhập số không âm.");
+      });
+    });
+  }
   function getNonNegativeNumber(id) {
     const input = document.getElementById(id);
     const value = Number(input.value);
 
-    if (!Number.isFinite(value) || value < 0) {
+    if (!Number.isFinite(value) || value < 0 || input.value === "") {
       input.focus();
+      showFieldError(input, `${getFieldLabel(input)} không được để trống hoặc nhập số âm.`);
       throw new Error("Vui lòng không nhập số âm.");
     }
 
+    clearFieldError(input);
     return value;
   }
 
   function showError(message) {
-    document.getElementById("du_doan").innerText = message;
-    document.getElementById("du_doan").className = "result-value warning";
-    document.getElementById("risk_score").innerText = "--";
-    document.getElementById("quyet_dinh").innerText = "--";
+    const firstInput = document.getElementById(numericInputIds[0]);
+    showFieldError(firstInput, message);
+    firstInput.focus();
   }
 
   async function duDoan() {
     let data;
 
     try {
+      clearAllFieldErrors();
       data = {
       "Tên mặt hàng": document.getElementById("ten_mat_hang").value,
       "Nhóm mặt hàng": document.getElementById("nhom_mat_hang").value,
@@ -381,7 +525,6 @@
       "Dự báo nhu cầu": getNonNegativeNumber("du_bao_nhu_cau")
       };
     } catch (error) {
-      showError(error.message);
       return;
     }
 
@@ -410,6 +553,8 @@
       document.getElementById("du_doan").className = "result-value safe";
     }
   }
+
+  setupNumericInputs();
 </script>
 
 </body>
