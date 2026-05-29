@@ -88,6 +88,15 @@ def xac_dinh_muc_rui_ro(risk_score_percent):
     return "Thấp"
 
 
+def lay_so(data, field, default=0):
+    value = data.get(field, default)
+
+    if value in (None, ""):
+        return default
+
+    return float(value)
+
+
 def kiem_tra_so_khong_am(data):
     for field in NON_NEGATIVE_NUMERIC_FIELDS:
         value = data.get(field)
@@ -102,6 +111,78 @@ def kiem_tra_so_khong_am(data):
 
         if numeric_value < 0:
             raise ValueError(f"{field} không được nhập số âm.")
+
+
+def phan_tich_rui_ro_va_goi_y(data, risk_score_percent):
+    ly_do = []
+    goi_y = []
+
+    giao_thong = data.get("Tình trạng giao thông", "")
+    muc_uu_tien = data.get("Mức độ ưu tiên", "")
+    hang_quan_trong = data.get("Hàng quan trọng", "")
+
+    ton_kho = lay_so(data, "Số hàng còn tồn kho")
+    ton_kho_an_toan = lay_so(data, "Tồn kho an toàn")
+    thoi_gian_cho = lay_so(data, "Thời gian chờ hàng")
+    nguong_chiu_tre = lay_so(data, "Ngưỡng chịu trễ giờ")
+    muc_su_dung = lay_so(data, "Mức sử dụng phương tiện")
+    du_bao_nhu_cau = lay_so(data, "Dự báo nhu cầu")
+    nhiet_do = lay_so(data, "Nhiệt độ")
+    do_am = lay_so(data, "Độ ẩm")
+
+    if risk_score_percent >= 70:
+        ly_do.append(f"Risk Score đang ở mức cao ({risk_score_percent}%).")
+        goi_y.append("Ưu tiên xử lý đơn này trước các đơn có rủi ro thấp hơn.")
+    elif risk_score_percent >= 40:
+        ly_do.append(f"Risk Score ở mức trung bình ({risk_score_percent}%), cần theo dõi thêm.")
+        goi_y.append("Theo dõi sát tiến độ giao hàng và cập nhật lại khi điều kiện thay đổi.")
+    else:
+        ly_do.append(f"Risk Score thấp ({risk_score_percent}%), chưa có dấu hiệu rủi ro lớn.")
+
+    if giao_thong == "Ùn tắc":
+        ly_do.append("Tình trạng giao thông đang ùn tắc, có thể làm tăng thời gian vận chuyển.")
+        goi_y.append("Cân nhắc đổi tuyến đường hoặc lùi/đẩy thời điểm giao để tránh khung giờ ùn tắc.")
+    elif giao_thong == "Đường vòng":
+        ly_do.append("Tuyến giao hàng phải đi đường vòng, thời gian di chuyển có thể dài hơn dự kiến.")
+        goi_y.append("Kiểm tra lại tuyến giao và thông báo sớm cho bên nhận nếu ETA thay đổi.")
+
+    if nguong_chiu_tre > 0 and thoi_gian_cho > nguong_chiu_tre:
+        ly_do.append("Thời gian chờ hiện tại đã vượt ngưỡng chịu trễ.")
+        goi_y.append("Liên hệ nhà vận chuyển/nhà cung cấp để xác nhận nguyên nhân chờ và ETA mới.")
+    elif nguong_chiu_tre > 0 and thoi_gian_cho >= nguong_chiu_tre * 0.7:
+        ly_do.append("Thời gian chờ đã gần chạm ngưỡng chịu trễ.")
+        goi_y.append("Chuẩn bị phương án dự phòng nếu thời gian chờ tiếp tục tăng.")
+
+    if ton_kho < ton_kho_an_toan:
+        ly_do.append("Tồn kho hiện tại thấp hơn tồn kho an toàn.")
+        goi_y.append("Bổ sung tồn kho hoặc ưu tiên nhập hàng thay thế để tránh thiếu nguyên liệu.")
+
+    if muc_su_dung >= 0.8:
+        ly_do.append("Mức sử dụng phương tiện đang cao, khả năng điều phối bị hạn chế.")
+        goi_y.append("Xem xét tăng phương tiện, đổi đơn vị vận chuyển hoặc chia nhỏ chuyến giao.")
+
+    if du_bao_nhu_cau >= 100:
+        ly_do.append("Dự báo nhu cầu cao, áp lực đáp ứng đơn hàng tăng.")
+        goi_y.append("Tăng kế hoạch đặt hàng sớm và kiểm tra năng lực cung ứng của nhà cung cấp.")
+
+    if nhiet_do >= 35 or do_am >= 85:
+        ly_do.append("Điều kiện thời tiết/môi trường không thuận lợi cho vận chuyển.")
+        goi_y.append("Kiểm tra yêu cầu bảo quản và cân nhắc phương án giao có kiểm soát điều kiện.")
+
+    if muc_uu_tien == "Cao":
+        ly_do.append("Mặt hàng có mức ưu tiên cao, tác động lớn nếu giao trễ.")
+        goi_y.append("Gắn nhãn ưu tiên cao và theo dõi riêng đến khi hoàn tất giao hàng.")
+    elif muc_uu_tien == "Trung bình" and risk_score_percent >= 70:
+        goi_y.append("Nâng mức theo dõi vì rủi ro hiện tại cao hơn mức ưu tiên ban đầu.")
+
+    if hang_quan_trong == "Có":
+        ly_do.append("Đây là hàng quan trọng trong quy trình vận hành.")
+        goi_y.append("Thông báo sớm cho bộ phận liên quan để chuẩn bị phương án thay thế nếu cần.")
+
+    if not goi_y:
+        goi_y.append("Tiếp tục theo dõi đơn hàng theo quy trình thông thường.")
+
+    return ly_do, goi_y
 
 
 def ap_dung_business_rules(data, risk_score_percent):
@@ -284,6 +365,7 @@ def predict():
 
         muc_rui_ro = xac_dinh_muc_rui_ro(risk_score)
         quyet_dinh = ap_dung_business_rules(data, risk_score)
+        ly_do_rui_ro, goi_y_hanh_dong = phan_tich_rui_ro_va_goi_y(data, risk_score)
 
         if risk_score >= 50:
             du_doan = "Có nguy cơ giao trễ"
@@ -295,6 +377,8 @@ def predict():
             "risk_score": risk_score,
             "muc_rui_ro": muc_rui_ro,
             "quyet_dinh_canh_bao": quyet_dinh,
+            "ly_do_rui_ro": ly_do_rui_ro,
+            "goi_y_hanh_dong": goi_y_hanh_dong,
             "model_mode": model_mode
         })
 
