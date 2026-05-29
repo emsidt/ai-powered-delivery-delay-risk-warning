@@ -220,6 +220,12 @@ def ap_dung_business_rules(data, risk_score_percent):
     if muc_uu_tien == "Thấp" and risk_score_percent >= 90 and thoi_gian_cho_vuot_nguong:
         return "Cảnh báo ưu tiên thấp"
 
+    if risk_score_percent >= 70:
+        return "Cảnh báo"
+
+    if risk_score_percent >= 40:
+        return "Cần theo dõi"
+
     return "Không cảnh báo"
 
 
