@@ -48,6 +48,19 @@ CATEGORICAL_COLUMNS = [
     "Hàng quan trọng",
 ]
 
+NON_NEGATIVE_NUMERIC_FIELDS = [
+    "Giá trị giao dịch",
+    "Tần suất mua hàng",
+    "Số hàng còn tồn kho",
+    "Tồn kho an toàn",
+    "Nhiệt độ",
+    "Độ ẩm",
+    "Thời gian chờ hàng",
+    "Ngưỡng chịu trễ giờ",
+    "Mức sử dụng phương tiện",
+    "Dự báo nhu cầu",
+]
+
 LOCATION_COORDINATES = {
     "Kho TP.HCM": {"Vĩ độ": 10.762622, "Kinh độ": 106.660172},
     "Kho Hà Nội": {"Vĩ độ": 21.028511, "Kinh độ": 105.804817},
@@ -73,6 +86,22 @@ def xac_dinh_muc_rui_ro(risk_score_percent):
     if risk_score_percent >= 40:
         return "Trung bình"
     return "Thấp"
+
+
+def kiem_tra_so_khong_am(data):
+    for field in NON_NEGATIVE_NUMERIC_FIELDS:
+        value = data.get(field)
+
+        if value in (None, ""):
+            continue
+
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{field} phải là số hợp lệ.")
+
+        if numeric_value < 0:
+            raise ValueError(f"{field} không được nhập số âm.")
 
 
 def ap_dung_business_rules(data, risk_score_percent):
@@ -244,6 +273,8 @@ def predict():
         }), 400
 
     try:
+        kiem_tra_so_khong_am(data)
+
         if model is not None and feature_columns is not None:
             risk_score = du_doan_bang_model_that(data)
             model_mode = "Random Forest model"
@@ -267,6 +298,10 @@ def predict():
             "model_mode": model_mode
         })
 
+    except ValueError as e:
+        return jsonify({
+            "error": str(e)
+        }), 400
     except Exception as e:
         return jsonify({
             "error": str(e)

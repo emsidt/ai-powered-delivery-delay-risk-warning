@@ -265,32 +265,32 @@
 
         <div class="field">
           <label>Giá trị giao dịch</label>
-          <input type="number" id="gia_tri_giao_dich" value="1200" />
+          <input type="number" id="gia_tri_giao_dich" value="1200" min="0" />
         </div>
 
         <div class="field">
           <label>Tần suất mua hàng</label>
-          <input type="number" id="tan_suat_mua_hang" value="8" />
+          <input type="number" id="tan_suat_mua_hang" value="8" min="0" />
         </div>
 
         <div class="field">
           <label>Mức tồn kho hiện tại</label>
-          <input type="number" id="muc_ton_kho" value="50" />
+          <input type="number" id="muc_ton_kho" value="50" min="0" />
         </div>
 
         <div class="field">
           <label>Tồn kho an toàn</label>
-          <input type="number" id="ton_kho_an_toan" value="80" />
+          <input type="number" id="ton_kho_an_toan" value="80" min="0" />
         </div>
 
         <div class="field">
           <label>Nhiệt độ</label>
-          <input type="number" id="nhiet_do" value="30" />
+          <input type="number" id="nhiet_do" value="30" min="0" />
         </div>
 
         <div class="field">
           <label>Độ ẩm</label>
-          <input type="number" id="do_am" value="70" />
+          <input type="number" id="do_am" value="70" min="0" />
         </div>
 
         <div class="field">
@@ -304,22 +304,22 @@
 
         <div class="field">
           <label>Thời gian chờ hiện tại</label>
-          <input type="number" id="thoi_gian_cho" value="2" />
+          <input type="number" id="thoi_gian_cho" value="2" min="0" />
         </div>
 
         <div class="field">
           <label>Ngưỡng chịu trễ giờ</label>
-          <input type="number" id="nguong_chiu_tre" value="4" step="0.5" />
+          <input type="number" id="nguong_chiu_tre" value="4" min="0" step="0.5" />
         </div>
 
         <div class="field">
           <label>Mức sử dụng phương tiện</label>
-          <input type="number" id="muc_su_dung_phuong_tien" value="0.75" step="0.01" />
+          <input type="number" id="muc_su_dung_phuong_tien" value="0.75" min="0" step="0.01" />
         </div>
 
         <div class="field">
           <label>Dự báo nhu cầu</label>
-          <input type="number" id="du_bao_nhu_cau" value="120" />
+          <input type="number" id="du_bao_nhu_cau" value="120" min="0" />
         </div>
       </div>
 
@@ -338,26 +338,52 @@
 </div>
 
 <script>
+  function getNonNegativeNumber(id) {
+    const input = document.getElementById(id);
+    const value = Number(input.value);
+
+    if (!Number.isFinite(value) || value < 0) {
+      input.focus();
+      throw new Error("Vui lòng không nhập số âm.");
+    }
+
+    return value;
+  }
+
+  function showError(message) {
+    document.getElementById("du_doan").innerText = message;
+    document.getElementById("du_doan").className = "result-value warning";
+    document.getElementById("risk_score").innerText = "--";
+    document.getElementById("quyet_dinh").innerText = "--";
+  }
+
   async function duDoan() {
-    const data = {
+    let data;
+
+    try {
+      data = {
       "Tên mặt hàng": document.getElementById("ten_mat_hang").value,
       "Nhóm mặt hàng": document.getElementById("nhom_mat_hang").value,
       "Mức độ ưu tiên": document.getElementById("muc_do_uu_tien").value,
       "Hàng quan trọng": document.getElementById("hang_quan_trong").value,
       "Thời gian giao": document.getElementById("thoi_gian_giao").value,
       "Địa điểm giao/kho": document.getElementById("dia_diem").value,
-      "Giá trị giao dịch": Number(document.getElementById("gia_tri_giao_dich").value),
-      "Tần suất mua hàng": Number(document.getElementById("tan_suat_mua_hang").value),
-      "Số hàng còn tồn kho": Number(document.getElementById("muc_ton_kho").value),
-      "Tồn kho an toàn": Number(document.getElementById("ton_kho_an_toan").value),
-      "Nhiệt độ": Number(document.getElementById("nhiet_do").value),
-      "Độ ẩm": Number(document.getElementById("do_am").value),
+      "Giá trị giao dịch": getNonNegativeNumber("gia_tri_giao_dich"),
+      "Tần suất mua hàng": getNonNegativeNumber("tan_suat_mua_hang"),
+      "Số hàng còn tồn kho": getNonNegativeNumber("muc_ton_kho"),
+      "Tồn kho an toàn": getNonNegativeNumber("ton_kho_an_toan"),
+      "Nhiệt độ": getNonNegativeNumber("nhiet_do"),
+      "Độ ẩm": getNonNegativeNumber("do_am"),
       "Tình trạng giao thông": document.getElementById("tinh_trang_giao_thong").value,
-      "Thời gian chờ hàng": Number(document.getElementById("thoi_gian_cho").value),
-      "Ngưỡng chịu trễ giờ": Number(document.getElementById("nguong_chiu_tre").value),
-      "Mức sử dụng phương tiện": Number(document.getElementById("muc_su_dung_phuong_tien").value),
-      "Dự báo nhu cầu": Number(document.getElementById("du_bao_nhu_cau").value)
-    };
+      "Thời gian chờ hàng": getNonNegativeNumber("thoi_gian_cho"),
+      "Ngưỡng chịu trễ giờ": getNonNegativeNumber("nguong_chiu_tre"),
+      "Mức sử dụng phương tiện": getNonNegativeNumber("muc_su_dung_phuong_tien"),
+      "Dự báo nhu cầu": getNonNegativeNumber("du_bao_nhu_cau")
+      };
+    } catch (error) {
+      showError(error.message);
+      return;
+    }
 
     const response = await fetch("/predict", {
       method: "POST",
@@ -368,6 +394,11 @@
     });
 
     const result = await response.json();
+
+    if (!response.ok) {
+      showError(result.error || "Không thể dự đoán.");
+      return;
+    }
 
     document.getElementById("du_doan").innerText = result.du_doan_giao_tre;
     document.getElementById("risk_score").innerText = result.risk_score + "%";
