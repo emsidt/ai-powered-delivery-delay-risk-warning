@@ -283,32 +283,32 @@
 
         <div class="field">
           <label>Giá trị giao dịch</label>
-          <input type="number" id="gia_tri_giao_dich" value="1200" min="0" />
+          <input type="text" id="gia_tri_giao_dich" value="1200" inputmode="decimal" />
         </div>
 
         <div class="field">
           <label>Tần suất mua hàng</label>
-          <input type="number" id="tan_suat_mua_hang" value="8" min="0" />
+          <input type="text" id="tan_suat_mua_hang" value="8" inputmode="decimal" />
         </div>
 
         <div class="field">
           <label>Mức tồn kho hiện tại</label>
-          <input type="number" id="muc_ton_kho" value="50" min="0" />
+          <input type="text" id="muc_ton_kho" value="50" inputmode="decimal" />
         </div>
 
         <div class="field">
           <label>Tồn kho an toàn</label>
-          <input type="number" id="ton_kho_an_toan" value="80" min="0" />
+          <input type="text" id="ton_kho_an_toan" value="80" inputmode="decimal" />
         </div>
 
         <div class="field">
           <label>Nhiệt độ</label>
-          <input type="number" id="nhiet_do" value="30" min="0" />
+          <input type="text" id="nhiet_do" value="30" inputmode="decimal" />
         </div>
 
         <div class="field">
           <label>Độ ẩm</label>
-          <input type="number" id="do_am" value="70" min="0" />
+          <input type="text" id="do_am" value="70" inputmode="decimal" />
         </div>
 
         <div class="field">
@@ -322,22 +322,22 @@
 
         <div class="field">
           <label>Thời gian chờ hiện tại</label>
-          <input type="number" id="thoi_gian_cho" value="2" min="0" />
+          <input type="text" id="thoi_gian_cho" value="2" inputmode="decimal" />
         </div>
 
         <div class="field">
           <label>Ngưỡng chịu trễ giờ</label>
-          <input type="number" id="nguong_chiu_tre" value="4" min="0" step="0.5" />
+          <input type="text" id="nguong_chiu_tre" value="4" inputmode="decimal" />
         </div>
 
         <div class="field">
           <label>Mức sử dụng phương tiện</label>
-          <input type="number" id="muc_su_dung_phuong_tien" value="0.75" min="0" step="0.01" />
+          <input type="text" id="muc_su_dung_phuong_tien" value="0.75" inputmode="decimal" />
         </div>
 
         <div class="field">
           <label>Dự báo nhu cầu</label>
-          <input type="number" id="du_bao_nhu_cau" value="120" min="0" />
+          <input type="text" id="du_bao_nhu_cau" value="120" inputmode="decimal" />
         </div>
       </div>
 
@@ -418,6 +418,18 @@
     return value === "" || /^\d+(\.\d*)?$/.test(value) || /^\.\d+$/.test(value);
   }
 
+  function getNumericErrorMessage(value) {
+    if (/[a-zA-ZÀ-ỹ]/.test(value)) {
+      return "Không được nhập chữ.";
+    }
+
+    if (value.includes("-")) {
+      return "Không được nhập số âm.";
+    }
+
+    return "Chỉ được nhập số không âm.";
+  }
+
   function handleNumericBeforeInput(event) {
     if (!event.data || !event.inputType.startsWith("insert")) {
       return;
@@ -431,7 +443,7 @@
 
     if (!isAllowedNumericValue(nextValue)) {
       event.preventDefault();
-      showFieldError(input, "Chỉ được nhập số không âm.");
+      showFieldError(input, getNumericErrorMessage(event.data));
     }
   }
 
@@ -447,7 +459,7 @@
 
     if (!/[\d.]/.test(event.key)) {
       event.preventDefault();
-      showFieldError(event.currentTarget, "Chỉ được nhập số không âm.");
+      showFieldError(event.currentTarget, getNumericErrorMessage(event.key));
     }
   }
 
@@ -457,7 +469,7 @@
 
     if (!isAllowedNumericValue(pastedText)) {
       event.preventDefault();
-      showFieldError(input, "Chỉ được nhập số không âm.");
+      showFieldError(input, getNumericErrorMessage(pastedText));
     }
   }
 
@@ -475,19 +487,40 @@
           return;
         }
 
+        const message = getNumericErrorMessage(input.value);
         input.value = input.value.replace(/[^\d.]/g, "");
-        showFieldError(input, "Chỉ được nhập số không âm.");
+        showFieldError(input, message);
       });
     });
   }
+
   function getNonNegativeNumber(id) {
     const input = document.getElementById(id);
-    const value = Number(input.value);
+    const rawValue = input.value.trim();
+    const value = Number(rawValue);
 
-    if (!Number.isFinite(value) || value < 0 || input.value === "") {
+    if (rawValue === "") {
       input.focus();
-      showFieldError(input, `${getFieldLabel(input)} không được để trống hoặc nhập số âm.`);
-      throw new Error("Vui lòng không nhập số âm.");
+      showFieldError(input, `${getFieldLabel(input)} không được để trống.`);
+      throw new Error("Invalid numeric input");
+    }
+
+    if (/[a-zA-ZÀ-ỹ]/.test(rawValue)) {
+      input.focus();
+      showFieldError(input, `${getFieldLabel(input)} không được nhập chữ.`);
+      throw new Error("Invalid numeric input");
+    }
+
+    if (rawValue.includes("-") || value < 0) {
+      input.focus();
+      showFieldError(input, `${getFieldLabel(input)} không được nhập số âm.`);
+      throw new Error("Invalid numeric input");
+    }
+
+    if (!Number.isFinite(value) || !isAllowedNumericValue(rawValue)) {
+      input.focus();
+      showFieldError(input, `${getFieldLabel(input)} phải là số hợp lệ.`);
+      throw new Error("Invalid numeric input");
     }
 
     clearFieldError(input);
