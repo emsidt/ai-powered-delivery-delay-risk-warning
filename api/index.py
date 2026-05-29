@@ -339,6 +339,48 @@ def du_doan_demo(data):
     return round(risk, 2)
 
 
+def du_doan_mot_dong(data):
+    kiem_tra_so_khong_am(data)
+
+    if model is not None and feature_columns is not None:
+        risk_score = du_doan_bang_model_that(data)
+        model_mode = "Random Forest model"
+    else:
+        risk_score = du_doan_demo(data)
+        model_mode = "Demo scoring"
+
+    muc_rui_ro = xac_dinh_muc_rui_ro(risk_score)
+    quyet_dinh = ap_dung_business_rules(data, risk_score)
+    ly_do_rui_ro, goi_y_hanh_dong = phan_tich_rui_ro_va_goi_y(data, risk_score)
+
+    if risk_score >= 50:
+        du_doan = "Có nguy cơ giao trễ"
+    else:
+        du_doan = "Không có nguy cơ giao trễ"
+
+    return {
+        "du_doan_giao_tre": du_doan,
+        "risk_score": risk_score,
+        "muc_rui_ro": muc_rui_ro,
+        "quyet_dinh_canh_bao": quyet_dinh,
+        "ly_do_rui_ro": ly_do_rui_ro,
+        "goi_y_hanh_dong": goi_y_hanh_dong,
+        "model_mode": model_mode
+    }
+
+
+def chuan_hoa_record_csv(record):
+    cleaned = {}
+
+    for key, value in record.items():
+        if pd.isna(value):
+            cleaned[key] = ""
+        else:
+            cleaned[key] = value
+
+    return cleaned
+
+
 @app.route("/", methods=["GET"])
 def home():
     return render_template("index.html")
@@ -354,38 +396,72 @@ def predict():
         }), 400
 
     try:
-        kiem_tra_so_khong_am(data)
-
-        if model is not None and feature_columns is not None:
-            risk_score = du_doan_bang_model_that(data)
-            model_mode = "Random Forest model"
-        else:
-            risk_score = du_doan_demo(data)
-            model_mode = "Demo scoring"
-
-        muc_rui_ro = xac_dinh_muc_rui_ro(risk_score)
-        quyet_dinh = ap_dung_business_rules(data, risk_score)
-        ly_do_rui_ro, goi_y_hanh_dong = phan_tich_rui_ro_va_goi_y(data, risk_score)
-
-        if risk_score >= 50:
-            du_doan = "Có nguy cơ giao trễ"
-        else:
-            du_doan = "Không có nguy cơ giao trễ"
-
-        return jsonify({
-            "du_doan_giao_tre": du_doan,
-            "risk_score": risk_score,
-            "muc_rui_ro": muc_rui_ro,
-            "quyet_dinh_canh_bao": quyet_dinh,
-            "ly_do_rui_ro": ly_do_rui_ro,
-            "goi_y_hanh_dong": goi_y_hanh_dong,
-            "model_mode": model_mode
-        })
+        return jsonify(du_doan_mot_dong(data))
 
     except ValueError as e:
         return jsonify({
             "error": str(e)
         }), 400
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route("/predict-batch", methods=["POST"])
+def predict_batch():
+    uploaded_file = request.files.get("file")
+
+    if not uploaded_file or uploaded_file.filename == "":
+        return jsonify({
+            "error": "Chưa chọn file CSV."
+        }), 400
+
+    if not uploaded_file.filename.lower().endswith(".csv"):
+        return jsonify({
+            "error": "File upload phải có định dạng .csv."
+        }), 400
+
+    try:
+        try:
+            df = pd.read_csv(uploaded_file, encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            uploaded_file.stream.seek(0)
+            df = pd.read_csv(uploaded_file, encoding="latin1")
+
+        if df.empty:
+            return jsonify({
+                "error": "File CSV không có dữ liệu."
+            }), 400
+
+        results = []
+
+        for index, record in enumerate(df.to_dict(orient="records"), start=1):
+            row_data = chuan_hoa_record_csv(record)
+
+            try:
+                prediction = du_doan_mot_dong(row_data)
+                results.append({
+                    "row_number": index,
+                    "status": "success",
+                    **prediction
+                })
+            except Exception as e:
+                results.append({
+                    "row_number": index,
+                    "status": "error",
+                    "error": str(e)
+                })
+
+        success_count = sum(1 for item in results if item["status"] == "success")
+
+        return jsonify({
+            "total_rows": len(results),
+            "success_count": success_count,
+            "error_count": len(results) - success_count,
+            "results": results
+        })
+
     except Exception as e:
         return jsonify({
             "error": str(e)

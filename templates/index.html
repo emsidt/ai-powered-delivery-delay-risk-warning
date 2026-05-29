@@ -222,6 +222,86 @@
       margin-top: 5px;
     }
 
+    .batch-panel {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 18px;
+    }
+
+    .batch-panel h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      color: #0f172a;
+    }
+
+    .batch-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .batch-controls input[type="file"] {
+      width: min(100%, 420px);
+      background: white;
+    }
+
+    .batch-controls button {
+      margin-top: 0;
+      min-width: 160px;
+    }
+
+    .batch-status {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .batch-table-wrap {
+      display: none;
+      margin-top: 14px;
+      overflow-x: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      background: white;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #0f172a;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .batch-text-list {
+      margin: 0;
+      padding-left: 16px;
+    }
+
+    .batch-row-error {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
     @media (max-width: 820px) {
       body {
         padding: 10px;
@@ -385,6 +465,31 @@
           <li>Chưa có dữ liệu</li>
         </ul>
       </div>
+    </div>
+  </div>
+
+  <div class="batch-panel">
+    <h3>Dự đoán hàng loạt bằng CSV</h3>
+    <div class="batch-controls">
+      <input type="file" id="csv_file" accept=".csv,text/csv" />
+      <button onclick="duDoanHangLoat()">Dự đoán CSV</button>
+    </div>
+    <div class="batch-status" id="batch_status">Chưa có file CSV</div>
+    <div class="batch-table-wrap" id="batch_table_wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Dòng</th>
+            <th>Trạng thái</th>
+            <th>Risk Score</th>
+            <th>Mức rủi ro</th>
+            <th>Quyết định</th>
+            <th>Lý do rủi ro</th>
+            <th>Gợi ý hành động</th>
+          </tr>
+        </thead>
+        <tbody id="batch_results"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -577,6 +682,100 @@
       listItem.innerText = item;
       list.appendChild(listItem);
     });
+  }
+
+  function createTableList(items) {
+    const list = document.createElement("ul");
+    const safeItems = Array.isArray(items) && items.length > 0 ? items : ["--"];
+
+    list.className = "batch-text-list";
+    safeItems.forEach((item) => {
+      const listItem = document.createElement("li");
+      listItem.innerText = item;
+      list.appendChild(listItem);
+    });
+
+    return list;
+  }
+
+  function setCellText(row, text, className = "") {
+    const cell = document.createElement("td");
+
+    cell.innerText = text;
+    if (className) {
+      cell.className = className;
+    }
+
+    row.appendChild(cell);
+    return cell;
+  }
+
+  function renderBatchResults(results) {
+    const tableWrap = document.getElementById("batch_table_wrap");
+    const tableBody = document.getElementById("batch_results");
+
+    tableBody.innerHTML = "";
+    results.forEach((item) => {
+      const row = document.createElement("tr");
+
+      setCellText(row, item.row_number || "--");
+      setCellText(row, item.status === "success" ? "Thành công" : "Lỗi", item.status === "success" ? "" : "batch-row-error");
+
+      if (item.status !== "success") {
+        setCellText(row, item.error || "--", "batch-row-error").colSpan = 5;
+        tableBody.appendChild(row);
+        return;
+      }
+
+      setCellText(row, `${item.risk_score}%`);
+      setCellText(row, item.muc_rui_ro || "--");
+      setCellText(row, item.quyet_dinh_canh_bao || "--");
+
+      const reasonCell = document.createElement("td");
+      reasonCell.appendChild(createTableList(item.ly_do_rui_ro));
+      row.appendChild(reasonCell);
+
+      const actionCell = document.createElement("td");
+      actionCell.appendChild(createTableList(item.goi_y_hanh_dong));
+      row.appendChild(actionCell);
+
+      tableBody.appendChild(row);
+    });
+
+    tableWrap.style.display = results.length > 0 ? "block" : "none";
+  }
+
+  async function duDoanHangLoat() {
+    const fileInput = document.getElementById("csv_file");
+    const status = document.getElementById("batch_status");
+    const tableWrap = document.getElementById("batch_table_wrap");
+
+    if (!fileInput.files.length) {
+      status.innerText = "Vui lòng chọn file CSV.";
+      tableWrap.style.display = "none";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    status.innerText = "Đang dự đoán CSV...";
+    tableWrap.style.display = "none";
+
+    const response = await fetch("/predict-batch", {
+      method: "POST",
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      status.innerText = result.error || "Không thể dự đoán file CSV.";
+      return;
+    }
+
+    status.innerText = `Đã xử lý ${result.total_rows} dòng: ${result.success_count} thành công, ${result.error_count} lỗi.`;
+    renderBatchResults(result.results || []);
   }
 
   async function duDoan() {
