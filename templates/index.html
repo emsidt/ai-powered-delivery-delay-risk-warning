@@ -367,7 +367,7 @@
 
     table {
       width: 100%;
-      min-width: 980px;
+      min-width: 760px;
       border-collapse: collapse;
       background: white;
       font-size: 13px;
@@ -413,18 +413,18 @@
     }
 
     .detail-button {
-      min-width: 116px;
+      min-width: 84px;
       min-height: 34px;
       margin-top: 0;
-      padding: 7px 12px;
+      padding: 7px 10px;
       font-size: 13px;
       box-shadow: none;
     }
 
     .detail-cell {
-      min-width: 156px;
-      padding-left: 18px;
-      padding-right: 18px;
+      width: 116px;
+      padding-left: 12px;
+      padding-right: 12px;
       text-align: center;
       white-space: nowrap;
     }
@@ -1225,7 +1225,7 @@
 
         detailCell.className = "detail-cell";
         detailButton.className = "detail-button";
-        detailButton.innerText = "Xem chi tiết";
+        detailButton.innerText = "Chi tiết";
         detailButton.onclick = () => showBatchDetail(index);
         detailCell.appendChild(detailButton);
         row.appendChild(detailCell);
@@ -1243,7 +1243,7 @@
       const detailButton = document.createElement("button");
       detailCell.className = "detail-cell";
       detailButton.className = "detail-button";
-      detailButton.innerText = "Xem chi tiết";
+      detailButton.innerText = "Chi tiết";
       detailButton.onclick = () => showBatchDetail(index);
       detailCell.appendChild(detailButton);
       row.appendChild(detailCell);
