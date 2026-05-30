@@ -413,12 +413,20 @@
     }
 
     .detail-button {
-      min-width: auto;
+      min-width: 116px;
       min-height: 34px;
       margin-top: 0;
       padding: 7px 12px;
       font-size: 13px;
       box-shadow: none;
+    }
+
+    .detail-cell {
+      min-width: 156px;
+      padding-left: 18px;
+      padding-right: 18px;
+      text-align: center;
+      white-space: nowrap;
     }
 
     .batch-detail-card {
@@ -1215,6 +1223,7 @@
         const detailCell = document.createElement("td");
         const detailButton = document.createElement("button");
 
+        detailCell.className = "detail-cell";
         detailButton.className = "detail-button";
         detailButton.innerText = "Xem chi tiết";
         detailButton.onclick = () => showBatchDetail(index);
@@ -1232,6 +1241,7 @@
 
       const detailCell = document.createElement("td");
       const detailButton = document.createElement("button");
+      detailCell.className = "detail-cell";
       detailButton.className = "detail-button";
       detailButton.innerText = "Xem chi tiết";
       detailButton.onclick = () => showBatchDetail(index);
