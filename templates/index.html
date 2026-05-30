@@ -21,6 +21,11 @@
       box-sizing: border-box;
     }
 
+    html {
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);
@@ -81,6 +86,7 @@
     }
 
     input, select {
+      font-family: inherit;
       width: 100%;
       min-height: 42px;
       padding: 9px 12px;
@@ -119,6 +125,7 @@
     }
 
     button {
+      font-family: inherit;
       margin-top: 18px;
       width: auto;
       min-width: 210px;
@@ -283,6 +290,23 @@
     .batch-controls button {
       margin-top: 0;
       min-width: 160px;
+    }
+
+    .secondary-button {
+      background: #0f766e;
+      box-shadow: 0 10px 20px rgba(15, 118, 110, 0.18);
+    }
+
+    .secondary-button:hover {
+      background: #115e59;
+      box-shadow: 0 12px 24px rgba(15, 118, 110, 0.24);
+    }
+
+    .secondary-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+      transform: none;
+      box-shadow: none;
     }
 
     .batch-status {
@@ -500,6 +524,7 @@
     }
 
     .sidebar-button {
+      font-family: inherit;
       width: 100%;
       min-width: 0;
       min-height: 42px;
@@ -742,6 +767,7 @@
     <div class="batch-controls">
       <input type="file" id="csv_file" accept=".csv,text/csv" />
       <button onclick="duDoanHangLoat()">Dự đoán CSV</button>
+      <button class="secondary-button" id="export_csv_button" onclick="exportBatchResults()" disabled>Xuất kết quả</button>
     </div>
     <div class="batch-status" id="batch_status">Chưa có file CSV</div>
     <div class="batch-summary" id="batch_summary">
@@ -1172,10 +1198,12 @@
   function renderBatchResults(results) {
     const tableWrap = document.getElementById("batch_table_wrap");
     const tableBody = document.getElementById("batch_results");
+    const exportButton = document.getElementById("export_csv_button");
 
     hideBatchDetail();
     tableBody.innerHTML = "";
     currentBatchView = results;
+    exportButton.disabled = results.length === 0;
     results.forEach((item, index) => {
       const row = document.createElement("tr");
 
@@ -1214,6 +1242,75 @@
     });
 
     tableWrap.style.display = results.length > 0 ? "block" : "none";
+  }
+
+  function csvEscape(value) {
+    const text = value === undefined || value === null ? "" : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function formatCsvList(items) {
+    return Array.isArray(items) ? items.join(" | ") : "";
+  }
+
+  function buildCsvRows(results) {
+    const inputKeys = Array.from(
+      results.reduce((keys, item) => {
+        Object.keys(item.input_data || {}).forEach((key) => keys.add(key));
+        return keys;
+      }, new Set())
+    );
+    const headers = [
+      "Dòng",
+      "Trạng thái",
+      "Risk Score",
+      "Mức rủi ro",
+      "Quyết định",
+      "Dự đoán giao trễ",
+      "Lý do rủi ro",
+      "Gợi ý hành động",
+      "Lỗi",
+      ...inputKeys
+    ];
+
+    const rows = results.map((item) => [
+      item.row_number || "",
+      item.status === "success" ? "Thành công" : "Lỗi",
+      item.status === "success" ? item.risk_score : "",
+      item.muc_rui_ro || "",
+      item.quyet_dinh_canh_bao || "",
+      item.du_doan_giao_tre || "",
+      formatCsvList(item.ly_do_rui_ro),
+      formatCsvList(item.goi_y_hanh_dong),
+      item.error || "",
+      ...inputKeys.map((key) => (item.input_data || {})[key] || "")
+    ]);
+
+    return [headers, ...rows]
+      .map((row) => row.map(csvEscape).join(","))
+      .join("\r\n");
+  }
+
+  function exportBatchResults() {
+    const status = document.getElementById("batch_status");
+
+    if (!currentBatchView.length) {
+      status.innerText = "Không có kết quả để xuất.";
+      return;
+    }
+
+    const csvContent = "\ufeff" + buildCsvRows(currentBatchView);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    link.href = url;
+    link.download = `ket-qua-du-doan-${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   function getRiskPriority(item) {
@@ -1303,6 +1400,7 @@
       tableWrap.style.display = "none";
       document.getElementById("batch_summary").style.display = "none";
       document.getElementById("batch_filters").style.display = "none";
+      document.getElementById("export_csv_button").disabled = true;
       hideBatchDetail();
       return;
     }
@@ -1314,6 +1412,7 @@
     tableWrap.style.display = "none";
     document.getElementById("batch_summary").style.display = "none";
     document.getElementById("batch_filters").style.display = "none";
+    document.getElementById("export_csv_button").disabled = true;
     hideBatchDetail();
 
     const response = await fetch("/predict-batch", {
@@ -1328,6 +1427,7 @@
       batchPredictionResults = [];
       currentBatchView = [];
       batchStatusSummary = "";
+      document.getElementById("export_csv_button").disabled = true;
       hideBatchDetail();
       return;
     }
