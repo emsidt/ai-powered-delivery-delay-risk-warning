@@ -455,6 +455,7 @@
     .detail-cell {
       padding-left: 0;
       padding-right: 0;
+      text-align: center;
       white-space: nowrap;
     }
 
@@ -1252,7 +1253,7 @@
         const detailCell = document.createElement("td");
         const detailButton = document.createElement("button");
 
-        detailCell.className = "detail-cell";
+        detailCell.className = "col-detail detail-cell";
         detailButton.className = "detail-button";
         detailButton.innerText = "Chi tiết";
         detailButton.onclick = () => showBatchDetail(index);
@@ -1270,7 +1271,7 @@
 
       const detailCell = document.createElement("td");
       const detailButton = document.createElement("button");
-      detailCell.className = "detail-cell";
+      detailCell.className = "col-detail detail-cell";
       detailButton.className = "detail-button";
       detailButton.innerText = "Chi tiết";
       detailButton.onclick = () => showBatchDetail(index);
