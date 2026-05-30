@@ -367,8 +367,9 @@
 
     table {
       width: 100%;
-      min-width: 760px;
+      min-width: 0;
       border-collapse: collapse;
+      table-layout: fixed;
       background: white;
       font-size: 13px;
     }
@@ -392,6 +393,30 @@
       border-bottom: none;
     }
 
+    .col-row {
+      width: 9%;
+    }
+
+    .col-status {
+      width: 16%;
+    }
+
+    .col-score {
+      width: 14%;
+    }
+
+    .col-risk {
+      width: 20%;
+    }
+
+    .col-decision {
+      width: 25%;
+    }
+
+    .col-detail {
+      width: 16%;
+    }
+
     .batch-text-list {
       margin: 0;
       padding-left: 16px;
@@ -413,7 +438,7 @@
     }
 
     .detail-button {
-      min-width: 84px;
+      width: 92px;
       min-height: 34px;
       margin-top: 0;
       padding: 7px 10px;
@@ -422,9 +447,8 @@
     }
 
     .detail-cell {
-      width: 116px;
-      padding-left: 12px;
-      padding-right: 12px;
+      padding-left: 10px;
+      padding-right: 10px;
       text-align: center;
       white-space: nowrap;
     }
@@ -820,12 +844,12 @@
       <table>
         <thead>
           <tr>
-            <th>Dòng</th>
-            <th>Trạng thái</th>
-            <th>Risk Score</th>
-            <th>Mức rủi ro</th>
-            <th>Quyết định</th>
-            <th>Chi tiết</th>
+            <th class="col-row">Dòng</th>
+            <th class="col-status">Trạng thái</th>
+            <th class="col-score">Risk Score</th>
+            <th class="col-risk">Mức rủi ro</th>
+            <th class="col-decision">Quyết định</th>
+            <th class="col-detail">Chi tiết</th>
           </tr>
         </thead>
         <tbody id="batch_results"></tbody>
